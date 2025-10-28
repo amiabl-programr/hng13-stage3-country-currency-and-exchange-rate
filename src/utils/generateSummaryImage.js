@@ -15,18 +15,18 @@ export const generateSummaryImageBuffer = (countries = [], lastRefreshedAt) => {
 
   // 🏷️ Title
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 28px Arial';
+  ctx.font = 'bold 28px sans-serif';
   ctx.fillText('🌍 Country Summary Report', 40, 60);
 
   // 🕒 Timestamp
-  ctx.font = '16px Arial';
+  ctx.font = '16px sans-serif';
   ctx.fillStyle = '#cccccc';
   ctx.fillText(`Last Refreshed: ${lastRefreshedAt || 'Unknown'}`, 40, 100);
 
   // 📊 Total countries
   const totalCountries = countries.length;
   ctx.fillStyle = '#00c46a';
-  ctx.font = 'bold 22px Arial';
+  ctx.font = 'bold 22px sans-serif';
   ctx.fillText(`Total Countries: ${totalCountries}`, 40, 140);
 
   // 💰 Top 5 by GDP
@@ -36,10 +36,10 @@ export const generateSummaryImageBuffer = (countries = [], lastRefreshedAt) => {
     .slice(0, 5);
 
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 20px Arial';
+  ctx.font = 'bold 20px sans-serif';
   ctx.fillText('Top 5 Countries by Estimated GDP', 40, 200);
 
-  ctx.font = '18px Arial';
+  ctx.font = '18px sans-serif';
   let y = 240;
 
   if (top5.length === 0) {
