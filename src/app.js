@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import countryRoutes from './routes/countryRoutes.js';
+import statusRoute from './routes/statusRoute.js';
 
 const app = express();
 
@@ -8,6 +9,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+app.use("/", statusRoute);
 app.use("/countries", countryRoutes);
 // handle unknown routes
 app.use((req,res)=>{
