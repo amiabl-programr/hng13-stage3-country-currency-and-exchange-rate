@@ -1,6 +1,6 @@
 import db  from '../db/db.js';
 import axios from 'axios';
-import { generateSummaryImage } from '../utils/generateSummaryImage.js';
+import { generateSummaryImageBuffer } from '../utils/generateSummaryImage.js';
 
 export async function getCountries(req, res) {
      try {
@@ -85,88 +85,80 @@ export async function generateStatus(req, res) {
 
 export const createCountry = async (req, res) => {
   try {
-    // Fetch country and exchange rate data
-    const { data: countries } = await axios.get(
-      'https://restcountries.com/v2/all?fields=name,capital,region,population,flag,currencies'
-    );
-    const { data: ratesData } = await axios.get('https://open.er-api.com/v6/latest/USD');
-    const exchangeRates = ratesData.rates;
+    console.log('🌍 Refreshing country data...');
 
+    // Fetch both APIs in parallel
+    const [countriesRes, ratesRes] = await Promise.all([
+      axios.get('https://restcountries.com/v2/all?fields=name,capital,region,population,flag,currencies'),
+      axios.get('https://open.er-api.com/v6/latest/USD'),
+    ]);
+
+    const countries = countriesRes.data;
+    const exchangeRates = ratesRes.data.rates;
     const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
 
-    // Loop through all countries
-    for (const country of countries) {
-      const name = country.name;
-      const capital = country.capital || null;
-      const region = country.region || null;
-      const population = country.population || 0;
-      const flag_url = country.flag || null;
+    // Prepare all country objects
+    const countryData = countries.map(c => {
+      const currency = c.currencies?.[0]?.code || null;
+      const rate = currency && exchangeRates[currency] ? exchangeRates[currency] : null;
+      const multiplier = Math.floor(Math.random() * 1001) + 1000;
+      const gdp = rate ? (c.population * multiplier) / rate : 0;
 
-      let currency_code = null;
-      let exchange_rate = null;
-      let estimated_gdp = null;
+      return {
+        name: c.name,
+        capital: c.capital || null,
+        region: c.region || null,
+        population: c.population || 0,
+        currency_code: currency,
+        exchange_rate: rate,
+        estimated_gdp: gdp,
+        flag_url: c.flag || null,
+        last_refreshed_at: now,
+      };
+    });
 
-      if (country.currencies?.length > 0) {
-        currency_code = country.currencies[0].code || null;
-      }
+    // Fetch existing country names once
+    const existingCountries = await db('countries').select('id', 'name');
+    const existingMap = new Map(
+      existingCountries.map(c => [c.name.toLowerCase(), c.id])
+    );
 
-      if (currency_code && exchangeRates[currency_code]) {
-        exchange_rate = exchangeRates[currency_code];
-        const multiplier = Math.floor(Math.random() * 1001) + 1000; 
-        estimated_gdp = (population * multiplier) / exchange_rate;
+    // Separate inserts and updates
+    const inserts = [];
+    const updates = [];
+
+    for (const c of countryData) {
+      const existingId = existingMap.get(c.name.toLowerCase());
+      if (existingId) {
+        updates.push({ ...c, id: existingId });
       } else {
-        exchange_rate = null;
-        estimated_gdp = 0;
-      }
-
-      // Check existing record
-      const existing = await db('countries')
-        .whereRaw('LOWER(name) = ?', [name.toLowerCase()])
-        .first();
-
-      if (existing) {
-        // Update
-        await db('countries')
-          .where({ id: existing.id })
-          .update({
-            capital,
-            region,
-            population,
-            currency_code,
-            exchange_rate,
-            estimated_gdp,
-            flag_url,
-            last_refreshed_at: now,
-          });
-      } else {
-        // Insert
-        await db('countries').insert({
-          name,
-          capital,
-          region,
-          population,
-          currency_code,
-          exchange_rate,
-          estimated_gdp,
-          flag_url,
-          last_refreshed_at: now,
-        });
+        inserts.push(c);
       }
     }
 
+    // Run updates and inserts in batches
+    if (updates.length > 0) {
+      const updatePromises = updates.map(u =>
+        db('countries').where({ id: u.id }).update(u)
+      );
+      await Promise.all(updatePromises);
+    }
 
-    // 4️⃣ Respond
-    const total = await db('countries').count('* as total');
-    // Generate summary image
-    const allCountries = await db('countries').select('*');
-    generateSummaryImage(allCountries, now);
-    res.json({
+    if (inserts.length > 0) {
+      await db.batchInsert('countries', inserts, 100); // insert in batches of 100
+    }
+
+    // Count total
+    const [{ total }] = await db('countries').count('* as total');
+
+    console.log(`✅ Refreshed ${inserts.length} new, ${updates.length} updated`);
+    res.status(200).json({
       message: 'Countries refreshed successfully',
-      total_countries: total[0].total,
+      total_countries: total,
       last_refreshed_at: now,
     });
   } catch (err) {
-    console.error('Refresh failed:', err);
+    console.error('❌ Refresh failed:', err.message);
     res.status(500).json({
       error: 'External data source unavailable',
       details: err.message,
@@ -174,6 +166,21 @@ export const createCountry = async (req, res) => {
   }
 };
 
+
+export async function generateSummaryImage(req,res) {
+    try {
+    const countries = await db('countries').select('*');
+    const lastRefreshedAt = new Date().toLocaleString();
+
+    const imageBuffer = generateSummaryImageBuffer(countries, lastRefreshedAt);
+
+    res.setHeader('Content-Type', 'image/png');
+    res.status(200).send(imageBuffer);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to generate summary image' });
+  }
+}
 
 export async function deleteCountry(req, res) {
   // Function implementation

@@ -1,6 +1,6 @@
 import express from 'express';
-import { getCountries, createCountry, generateStatus, getSpecificCountry, deleteCountry} from '../controllers/countryControllers.js';
-import { generateSummaryImage } from '../utils/generateSummaryImage.js';
+import { getCountries, createCountry, generateStatus, getSpecificCountry, deleteCountry, generateSummaryImage} from '../controllers/countryControllers.js';
+
 const router = express.Router();
 
 router.get('/', getCountries);
