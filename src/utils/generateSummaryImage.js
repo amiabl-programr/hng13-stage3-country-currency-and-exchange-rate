@@ -1,9 +1,22 @@
-import { createCanvas } from 'canvas';
+import { createCanvas, registerFont } from 'canvas';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 /**
  * Generates a summary PNG image (served directly in the browser)
  */
+
 export const generateSummaryImageBuffer = (countries = [], lastRefreshedAt) => {
+    // Fix for __dirname in ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+try {
+  const fontPath = path.join(__dirname, '..',  'fonts', 'Ubuntu-B.ttf');
+  registerFont(fontPath, { family: 'Ubuntu' });
+} catch (err) {
+  console.warn('⚠️ Font file not found — using fallback font.');
+}
   const width = 800;
   const height = 600;
   const canvas = createCanvas(width, height);
@@ -15,18 +28,18 @@ export const generateSummaryImageBuffer = (countries = [], lastRefreshedAt) => {
 
   // 🏷️ Title
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 28px sans-serif';
+  ctx.font = 'bold 28px Ubuntu';
   ctx.fillText('🌍 Country Summary Report', 40, 60);
 
   // 🕒 Timestamp
-  ctx.font = '16px sans-serif';
+  ctx.font = '16px Ubuntu';
   ctx.fillStyle = '#cccccc';
   ctx.fillText(`Last Refreshed: ${lastRefreshedAt || 'Unknown'}`, 40, 100);
 
   // 📊 Total countries
   const totalCountries = countries.length;
   ctx.fillStyle = '#00c46a';
-  ctx.font = 'bold 22px sans-serif';
+  ctx.font = 'bold 22px Ubuntu';
   ctx.fillText(`Total Countries: ${totalCountries}`, 40, 140);
 
   // 💰 Top 5 by GDP
@@ -36,10 +49,10 @@ export const generateSummaryImageBuffer = (countries = [], lastRefreshedAt) => {
     .slice(0, 5);
 
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 20px sans-serif';
+  ctx.font = 'bold 20px Ubuntu';
   ctx.fillText('Top 5 Countries by Estimated GDP', 40, 200);
 
-  ctx.font = '18px sans-serif';
+  ctx.font = '18px Ubuntu';
   let y = 240;
 
   if (top5.length === 0) {
